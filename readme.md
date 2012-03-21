@@ -34,3 +34,9 @@ Options are:
 *	-d  Execute when file is deleted
 *	-m  Execute when file is modified (default)
 *	-v  Prints when events are received
+
+### Example ###
+
+How i use it:
+
+	cwatch -e "make latex" handin.tex
