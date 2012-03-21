@@ -27,7 +27,7 @@ Simple checkout the source, type 'make', and hope everything works.
 Options are:
 
 *	-1  Oneshot, only runs once.
-*	-e <command> Command to execute
+*	-e *command* Command to execute
 *	-a  Execute when file is accessed
 *	-n  Execute when file is created
 *	-c  Execute when file is closed
