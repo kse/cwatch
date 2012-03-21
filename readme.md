@@ -10,9 +10,9 @@ and perform a shell command when the file has been altered.
 The program uses inotify, and was written because i wanted to make
 it possible to easily compile .tex documents when i save them.
 
-I, ofcourse accept no responsibilities for anything you do with this program.
+I, ofcourse, accept no responsibilities for anything you do with this program.
 
-Oh, and don't monitor a folder and execute them command on that changes the
+Oh, and don't monitor a folder and execute a command on that changes the
 same folder on edit.
 That's not pleasant.
 
