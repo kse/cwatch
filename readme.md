@@ -25,11 +25,11 @@ Simple checkout the source, type 'make', and hope everything works.
 > cwatch [options] FILES
 
 Options are:
-*   -1  Oneshot, only runs once.
-*   -e <command> Command to execute
-*   -a  Execute when file is accessed
-*   -n  Execute when file is created
-*   -c  Execute when file is closed
-*   -d  Execute when file is deleted
-*   -m  Execute when file is modified (default)
-*   -v  Prints when events are received
+*	-1  Oneshot, only runs once.
+*	-e <command> Command to execute
+*	-a  Execute when file is accessed
+*	-n  Execute when file is created
+*	-c  Execute when file is closed
+*	-d  Execute when file is deleted
+*	-m  Execute when file is modified (default)
+*	-v  Prints when events are received
