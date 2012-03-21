@@ -25,6 +25,7 @@ Simple checkout the source, type 'make', and hope everything works.
 > cwatch [options] FILES
 
 Options are:
+
 *	-1  Oneshot, only runs once.
 *	-e <command> Command to execute
 *	-a  Execute when file is accessed
