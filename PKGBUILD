@@ -9,9 +9,10 @@ makedepends=('git')
 provides=('cwatch')
 url="http://github.com/kse/cwatch"
 pkgdesc='Inotify watcher to execute command on file change'
+source=()
 
-_gitname="cwatch"
 _gitroot="git://github.com/kse/cwatch.git"
+_gitname="build"
 
 build() {
   cd "$srcdir/.."
@@ -25,16 +26,20 @@ build() {
   #fi
   #msg "GIT checkout done or server timeout"
 
+  rm -rf "$srcdir"
+  git clone "$startdir" "$srcdir"
+  cd "$srcdir"
+
   make
 }
 
 package() {
-  cd "$srcdir/$_gitname"
+  cd "$srcdir"
   make DESTDIR="$pkgdir/" install
 }
 
 pkgver() {
-  cd $srcdir/$_gitname
+  cd "$srcdir"
   echo $(git describe --always | sed 's/-/./g')
 }
 
