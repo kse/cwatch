@@ -12,9 +12,14 @@ compile:
 	$(CC) $(CFLAGS) $(SRC) -o $(OUTPUT)
 
 install:
-	install -D -m 755 $(OUTPUT) $(DESTDIR)usr/bin
+	mkdir -p $(DESTDIR)usr/bin
+	install -m 755 $(OUTPUT) $(DESTDIR)usr/bin/
 
 clean:
 	rm -f $(OUTPUT)
 	rm -rf pkg
 	rm -rf src
+	rm -rf build
+
+buildclean: clean
+	rm -f cwatch-git-*.pkg.tar.xz
