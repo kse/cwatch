@@ -1,6 +1,6 @@
 DESTDIR ?= /
 
-SRC      = src/cwatch.c
+SRC      = code/cwatch.c
 
 CC       = gcc
 CFLAGS   = -O3 -Wall -Wextra -Wno-unused-but-set-variable -ggdb
