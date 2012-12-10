@@ -12,7 +12,7 @@ compile:
 	$(CC) $(CFLAGS) $(SRC) -o $(OUTPUT)
 
 install:
-	install -D -m 755 -d $(OUTPUT) $(DESTDIR)usr/bin
+	install -D -m 755 $(OUTPUT) $(DESTDIR)usr/bin
 
 clean:
 	rm -f $(OUTPUT)
