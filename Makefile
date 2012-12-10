@@ -1,13 +1,13 @@
+DESTDIR ?=
 SRC=src/cwatch.c
-CC=cc
+CC=gcc
 CFLAGS=-O3 -Wall -Wextra -Wno-unused-but-set-variable -ggdb
-DEST=cwatch
+OUTPUT=cwatch
 
 all: compile
 
 compile:
-	$(CC) $(CFLAGS) $(SRC) -o $(DEST)
-
+	$(CC) $(CFLAGS) $(SRC) -o $(OUTPUT)
 
 install:
-	install -m 755 $(DEST) /usr/bin/
+	install -m 755 $(OUTPUT) $(DESTDIR)/usr/bin/
