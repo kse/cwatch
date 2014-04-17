@@ -14,13 +14,20 @@
 #include "cwatch.h"
 
 /* TODO
- * Accept watches for more than one file
- * Add template file, for regexp filenames.
- * In command to execute, add escape to match triggered file, and maybe first 
- *   file on command-line.
- * Maybe a warning about monitoring folders
- * All watches options?
- * Make monitoring a single file work better than oneshot
+ * In command to execute, add escape to match triggered file.
+
+ * See if we by matching the watch descriptor, can get a filename out of
+   triggered files.
+
+ * Full length names for passed options, they are easier to remember.
+
+ * Add all inotify events to passable options.
+
+ * Make monitoring a single file work better than oneshot (What did i mean?)
+
+ * At some point in the future, make it possible to have a .cwatch file, that
+   specifies matched patterns and actions on files.
+
  */
 
 int
