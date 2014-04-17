@@ -14,6 +14,8 @@
 #include "cwatch.h"
 
 /* TODO
+ * Use a hash to store watch descriptors, instead of an array.
+
  * In command to execute, add escape to match triggered file.
 
  * See if we by matching the watch descriptor, can get a filename out of
@@ -58,7 +60,6 @@ main(int argc, char **argv) {
 		{0,           0,                 0,  0 }     
 	};
 
-	char *filename;
 	int inotify_fd;
 	extern char *optarg;
 
@@ -102,8 +103,9 @@ main(int argc, char **argv) {
 		}
 	}
 
-	if(mask == 0)
-		mask = mask | IN_MODIFY;
+	if(mask == 0) {
+		mask |= IN_MODIFY;
+	}
 
 	// If we don't have atleast two arguments complain and exit.
 	if(argc < optind + 1) {
@@ -112,19 +114,19 @@ main(int argc, char **argv) {
 		exit(EXIT_FAILURE);
 	}
 
-	filename = strdup(argv[optind]);
-
 	inotify_fd = inotify_init();
 	if(inotify_fd == -1) { 
 		fprintf(stderr, "Error initializing inotify: %s\n", strerror(errno));
-		free(filename);
 		exit(EXIT_FAILURE);
 	}
 
 	// Use c as a pointer into watched files.
 	c = 0;
 
+	// Allocate simple array storage for the amount of files we want to watch.
 	W_DATA **watched_files = malloc((argc - (optind + 1))*sizeof(W_DATA*));
+
+	// Add a watch to all files on the command line.
 	while(optind < argc) {
 		wdes = inotify_add_watch(inotify_fd, argv[optind], mask);
 		W_DATA *w = malloc(sizeof(W_DATA));
@@ -155,17 +157,16 @@ main(int argc, char **argv) {
 			int ret = system(command);
 			(void)ret;
 		}
-		
+
 		for(c = 0; c < watch_count; c++) {
 			if(watched_files[c]->wdes == event->wd) {
-				//inotify_rm_watch(inotify_fd, event->wd);
 
-				/*
+				// Because overwrites, and does not update the file, the watch
+				// is lost on first save. Readding the watch seems to work.
 				wdes = inotify_add_watch(inotify_fd, 
 						watched_files[c]->fname, mask);
-						*/
 
-				//watched_files[c]->wdes = wdes;
+				watched_files[c]->wdes = wdes;
 			}
 		}
 
@@ -182,7 +183,6 @@ main(int argc, char **argv) {
 	free(watched_files);
 
 	close(inotify_fd);
-	free(filename);
 	exit(EXIT_SUCCESS);
 }
 
@@ -192,10 +192,10 @@ struct inotify_event* in_event(int fd) {
 	static struct inotify_event *event = NULL;
 
 	if(event == NULL) {
-		event = malloc(sizeof(struct inotify_event) + NAME_MAX);
+		event = malloc(sizeof(struct inotify_event) + NAME_MAX + 1);
 	}
 
-	ssize_t read_size = read(fd, event, sizeof(struct inotify_event) + NAME_MAX);
+	ssize_t read_size = read(fd, event, sizeof(struct inotify_event) + NAME_MAX + 1);
 
 	if(read_size == -1) {
 		fprintf(stderr, "Error reading inotify watch: %s\n", strerror(errno));
