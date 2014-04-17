@@ -1,4 +1,5 @@
 #define _GNU_SOURCE
+
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -12,6 +13,8 @@
 
 #include <getopt.h>
 #include "cwatch.h"
+
+#include <regex.h>
 
 /* TODO
  * Use a hash to store watch descriptors, instead of an array.
@@ -32,17 +35,82 @@
 
  */
 
+char *usage = "Usage: cwatch [OPTIONS] files/directories [OPTIONS]\n"
+"OPTIONS:\n"
+"\t-e CMD | --execute CMD        Execute CMD using a system() call.\n"
+"\t-r REG | --regexp  REG        Only trigger when files match regexp.\n"
+"\t -1    | --oneshot            Only trigger once\n"
+"\t -v    | --verbose            Print more information\n"
+"\n"
+"\tSupported inotify watch types are:\n"
+"\t --create (-n), --modify (-m), --close (-c), --delete (-d), --access (-a).\n";
+
+int oneshot = 0, verbose = 0, use_regex = 0;
+
+char *command = NULL;
+regex_t regexp;
+
+void loop(int inotify_fd, W_DATA **watched_files, int watch_count, uint32_t mask) {
+	int c, wdes;
+
+	while(1) {
+		struct inotify_event *event = in_event(inotify_fd);
+		char *name = NULL;
+
+		// Optionally notify about events
+		if(verbose == 1) {
+			if(event->len > 0)
+				printf("Received event for file: %s\n", event->name);
+			else {
+				printf("Event for unknown filename\n");
+			}
+		}
+
+		if(event->len == 0) {
+			for(c = 0; c < watch_count; c++) {
+				if(watched_files[c]->wdes == event->wd) {
+
+					// Because overwrites, and does not update the file, the
+					// watch is lost on first save. Readding the watch seems to
+					// work.
+					wdes = inotify_add_watch(inotify_fd, 
+							watched_files[c]->fname, mask);
+
+					watched_files[c]->wdes = wdes;
+					name = watched_files[c]->fname;
+				}
+			}
+		} else {
+			name = event->name;
+		}
+
+		(void)name;
+		if(command != NULL) {
+			if(use_regex) {
+				if(regexec(&regexp, name, 0, NULL, 0) == 0) {
+					system(command);
+				} else {
+					printf("Too bad\n");
+				}
+			} else {
+				int ret = system(command);
+				(void)ret;
+			}
+		}
+
+		if(oneshot == 1)
+			break;
+	}
+}
+
+
 int
 main(int argc, char **argv) {
-	int oneshot = 0, verbose = 0;
 
-	// All round variable
+	int res = 0;
 	int c;
 	int watch_count = 0;
 	int wdes;
-
-	// System command to execute
-	char *command = NULL;
 
 	// inotify watch mask
 	uint32_t mask = 0;
@@ -54,8 +122,9 @@ main(int argc, char **argv) {
 		{"close"  ,   no_argument,       0, 'c'},
 		{"delete" ,   no_argument,       0, 'd'},
 		{"access" ,   no_argument,       0, 'a'},
-		{"verbose",   no_argument,       0, 'r'},
+		{"verbose",   no_argument,       0, 'v'},
 		{"oneshot",   no_argument,       0, '1'},
+		{"regex"  ,   required_argument, 0, 'r'},
 		{"execute",   required_argument, 0, 'e'},
 		{0,           0,                 0,  0 }     
 	};
@@ -64,7 +133,7 @@ main(int argc, char **argv) {
 	extern char *optarg;
 
 	while(1) {
-		c = getopt_long(argc, argv, "nme:cda1rv",
+		c = getopt_long(argc, argv, "nme:cda1r:v",
 				long_options, &option_index);
 
 		if(c == -1) 
@@ -91,13 +160,23 @@ main(int argc, char **argv) {
 				mask |= IN_MODIFY;
 				break;
 			case 'v':
+				printf("Verbose\n");
 				verbose = 1;
 				break;
 			case 'e':
 				command = strdup(optarg);
 				break;
+			case 'r':
+				res = regcomp(&regexp, optarg, REG_EXTENDED | REG_ICASE | REG_NOSUB);
+				use_regex = 1;
+
+				if(res != 0) {
+					fprintf(stderr, "Unable to compile regexp: %d\n", res);
+					exit(EXIT_FAILURE);
+				}
+				break;
 			default:
-				fprintf(stderr, "Usage information\n");
+				fprintf(stderr, "%s", usage);
 				exit(EXIT_FAILURE);
 				break;
 		}
@@ -110,7 +189,7 @@ main(int argc, char **argv) {
 	// If we don't have atleast two arguments complain and exit.
 	if(argc < optind + 1) {
 		// This is retarded. Print some usage options instead.
-		fprintf(stderr, "Not enough options to work with.\n");
+		fprintf(stderr, "Not enough options.\n");
 		exit(EXIT_FAILURE);
 	}
 
@@ -139,40 +218,7 @@ main(int argc, char **argv) {
 		watch_count++;
 	}
 
-
-	while(1) {
-		struct inotify_event *event = in_event(inotify_fd);
-
-		// Optionally notify about events
-		if(verbose == 1) {
-			if(event->len > 0)
-				printf("Received event for file: %s\n", event->name);
-			else {
-				printf("Event for unknown filename\n");
-			}
-		}
-		
-		// Execute the execution argument
-		if(command != NULL) {
-			int ret = system(command);
-			(void)ret;
-		}
-
-		for(c = 0; c < watch_count; c++) {
-			if(watched_files[c]->wdes == event->wd) {
-
-				// Because overwrites, and does not update the file, the watch
-				// is lost on first save. Readding the watch seems to work.
-				wdes = inotify_add_watch(inotify_fd, 
-						watched_files[c]->fname, mask);
-
-				watched_files[c]->wdes = wdes;
-			}
-		}
-
-		if(oneshot == 1)
-			break;
-	}
+	loop(inotify_fd, watched_files, watch_count, mask);
 
 	// Free  stuff and exit
 	for(c = 0; c < watch_count; c++) {
