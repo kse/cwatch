@@ -3,7 +3,7 @@ DESTDIR ?= /
 SRC      = code/cwatch.c
 
 CC       = gcc
-CFLAGS   = -O3 -Wall -Wextra -Wno-unused-but-set-variable -ggdb
+CFLAGS    = -pipe -std=c99 -O3 -fstack-protector -Wl,-z,relro -Wl,-z,now -fvisibility=hidden -W -Wall -Wno-unused-parameter -Wno-unused-function -Wno-unused-label -Wpointer-arith -Wformat -Wreturn-type -Wsign-compare -Wmultichar -Wformat-nonliteral -Winit-self -Wuninitialized -Wno-deprecated -Wformat-security -Werror -pedantic
 OUTPUT   = cwatch
 
 all: compile
