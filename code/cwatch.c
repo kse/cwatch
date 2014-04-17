@@ -72,21 +72,22 @@ main(int argc, char **argv) {
 		switch(c) {
 			case '1':
 				oneshot = 1;
+				mask |= IN_ONESHOT;
 				break;
 			case 'a':
-				mask = mask | IN_ACCESS;
+				mask |= IN_ACCESS;
 				break;
 			case 'n':
-				mask = mask | IN_CREATE;
+				mask |= IN_CREATE;
 				break;
 			case 'c':
-				mask = mask | IN_CLOSE_WRITE;
+				mask |= IN_CLOSE_WRITE;
 				break;
 			case 'd':
-				mask = mask | IN_DELETE_SELF | IN_DELETE;
+				mask |= IN_DELETE_SELF | IN_DELETE;
 				break;
 			case 'm':
-				mask = mask | IN_MODIFY;
+				mask |= IN_MODIFY;
 				break;
 			case 'v':
 				verbose = 1;
@@ -112,16 +113,6 @@ main(int argc, char **argv) {
 	}
 
 	filename = strdup(argv[optind]);
-
-	// Redo checking if file exists, should use stat() instead,
-	// if it's even needed.
-	/*
-	if(access(filename, F_OK) == -1) {
-		fprintf(stderr, "No such file: %s\n", filename);
-		free(filename);
-		exit(EXIT_FAILURE);
-	}
-	*/
 
 	inotify_fd = inotify_init();
 	if(inotify_fd == -1) { 
@@ -152,7 +143,6 @@ main(int argc, char **argv) {
 
 		// Optionally notify about events
 		if(verbose == 1) {
-			//if((event->mask & IN_ISDIR) != 0)
 			if(event->len > 0)
 				printf("Received event for file: %s\n", event->name);
 			else {
@@ -168,13 +158,14 @@ main(int argc, char **argv) {
 		
 		for(c = 0; c < watch_count; c++) {
 			if(watched_files[c]->wdes == event->wd) {
-				//printf("Replacing watch for %s\n", watched_files[c]->fname);
-				inotify_rm_watch(inotify_fd, event->wd);
+				//inotify_rm_watch(inotify_fd, event->wd);
 
+				/*
 				wdes = inotify_add_watch(inotify_fd, 
 						watched_files[c]->fname, mask);
+						*/
 
-				watched_files[c]->wdes = wdes;
+				//watched_files[c]->wdes = wdes;
 			}
 		}
 
