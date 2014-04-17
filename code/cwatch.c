@@ -1,6 +1,10 @@
+#define _GNU_SOURCE
 #include <stdio.h>
-#include <unistd.h>
+#include <errno.h>
 #include <stdlib.h>
+#include <limits.h>
+
+#include <unistd.h>
 #include <string.h>
 
 #include <sys/inotify.h>
@@ -11,6 +15,9 @@
 
 /* TODO
  * Accept watches for more than one file
+ * Add template file, for regexp filenames.
+ * In command to execute, add escape to match triggered file, and maybe first 
+ *   file on command-line.
  * Maybe a warning about monitoring folders
  * All watches options?
  * Make monitoring a single file work better than oneshot
@@ -22,9 +29,7 @@ main(int argc, char **argv) {
 
 	// All round variable
 	int c;
-
 	int watch_count = 0;
-
 	int wdes;
 
 	// System command to execute
@@ -43,16 +48,14 @@ main(int argc, char **argv) {
 		{"verbose",   no_argument,       0, 'r'},
 		{"oneshot",   no_argument,       0, '1'},
 		{"execute",   required_argument, 0, 'e'},
-		{0,           0,                 0, 0  }     
+		{0,           0,                 0,  0 }     
 	};
 
 	char *filename;
 	int inotify_fd;
-
 	extern char *optarg;
 
 	while(1) {
-
 		c = getopt_long(argc, argv, "nme:cda1rv",
 				long_options, &option_index);
 
@@ -96,7 +99,7 @@ main(int argc, char **argv) {
 
 	// If we don't have atleast two arguments complain and exit.
 	if(argc < optind + 1) {
-		// Print usage instead
+		// This is retarded. Print some usage options instead.
 		fprintf(stderr, "Not enough options to work with.\n");
 		exit(EXIT_FAILURE);
 	}
@@ -115,7 +118,7 @@ main(int argc, char **argv) {
 
 	inotify_fd = inotify_init();
 	if(inotify_fd == -1) { 
-		fprintf(stderr, "Error initializing inotify: %m\n");
+		fprintf(stderr, "Error initializing inotify: %s\n", strerror(errno));
 		free(filename);
 		exit(EXIT_FAILURE);
 	}
@@ -168,8 +171,6 @@ main(int argc, char **argv) {
 			}
 		}
 
-		free(event);
-
 		if(oneshot == 1)
 			break;
 	}
@@ -187,34 +188,20 @@ main(int argc, char **argv) {
 	exit(EXIT_SUCCESS);
 }
 
+// Read inotify event from filehandle to memory allocated once. If memory leaks
+// are to be avoided, free the returned memory after the last usage.
 struct inotify_event* in_event(int fd) {
-	ssize_t buf_size = 32768;
+	static struct inotify_event *event = NULL;
 
-	// Space allocation for reading inotify events
-	char buf[buf_size];
-	ssize_t read_size;
-
-	struct inotify_event *event = malloc(sizeof(struct inotify_event));
-
-	unsigned int i;
-	
-	read_size = read(fd, buf, buf_size);
-
-	if(read_size == -1) {
-		fprintf(stderr, "Error reading inotify watch: %m\n");
-		exit(EXIT_FAILURE);
+	if(event == NULL) {
+		event = malloc(sizeof(struct inotify_event) + NAME_MAX);
 	}
 
-	event->wd = (int)buf[0];
-	event->mask = (uint32_t)buf[sizeof(int)];
-	event->cookie = (uint32_t)buf[sizeof(int) + sizeof(uint32_t)];
-	event->len = (uint32_t)buf[sizeof(int) + 2*sizeof(uint32_t)];
+	ssize_t read_size = read(fd, event, sizeof(struct inotify_event) + NAME_MAX);
 
-	if(event->len > 0) {
-		event = realloc(event, sizeof(struct inotify_event)+event->len);
-		for(i = 0; i < event->len; i++) {
-			event->name[i] = buf[sizeof(struct inotify_event) + i];
-		}
+	if(read_size == -1) {
+		fprintf(stderr, "Error reading inotify watch: %s\n", strerror(errno));
+		exit(EXIT_FAILURE);
 	}
 
 	return event;
