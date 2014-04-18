@@ -51,55 +51,74 @@ char *command = NULL;
 regex_t regexp;
 
 void loop(int inotify_fd, W_DATA **watched_files, int watch_count, uint32_t mask) {
-	int c, wdes;
+	int c, wdes, offset;
+	char buf[65536];
+	static struct inotify_event *event = NULL;
+	ssize_t read_size ;
+	char *name = NULL;
 
 	while(1) {
-		struct inotify_event *event = in_event(inotify_fd);
-		char *name = NULL;
+		//struct inotify_event *event = in_event(inotify_fd);
+		read_size = read(inotify_fd, buf, 65536);
 
-		// Optionally notify about events
-		if(verbose == 1) {
-			if(event->len > 0)
-				printf("Received event for file: %s\n", event->name);
-			else {
-				printf("Event for unknown filename\n");
-			}
+		if(read_size == -1) {
+			fprintf(stderr, "Error reading inotify watch: %s\n", strerror(errno));
+			exit(EXIT_FAILURE);
 		}
 
-		if(event->len == 0) {
-			for(c = 0; c < watch_count; c++) {
-				if(watched_files[c]->wdes == event->wd) {
+		for(offset = 0; offset < read_size; offset += sizeof(struct inotify_event) + event->len) {
+			event = (struct inotify_event*) &buf[offset];
 
-					// Because overwrites, and does not update the file, the
-					// watch is lost on first save. Readding the watch seems to
-					// work.
-					wdes = inotify_add_watch(inotify_fd, 
-							watched_files[c]->fname, mask);
+			if(event->len == 0) {
+				for(c = 0; c < watch_count; c++) {
+					if(watched_files[c]->wdes == event->wd) {
+						inotify_rm_watch(inotify_fd, event->wd);
 
-					watched_files[c]->wdes = wdes;
-					name = watched_files[c]->fname;
-				}
-			}
-		} else {
-			name = event->name;
-		}
+						// Because overwrites, and does not update the file,
+						// the watch is lost on first save. Readding the watch
+						// seems to work.
+						wdes = inotify_add_watch(inotify_fd, 
+								watched_files[c]->fname, mask);
 
-		(void)name;
-		if(command != NULL) {
-			if(use_regex) {
-				if(regexec(&regexp, name, 0, NULL, 0) == 0) {
-					system(command);
-				} else {
-					printf("Too bad\n");
+						watched_files[c]->wdes = wdes;
+						name = watched_files[c]->fname;
+					}
 				}
 			} else {
-				int ret = system(command);
-				(void)ret;
+				name = event->name;
+			}
+
+			/*
+			printf("Mask: %u\n",  mask);
+			printf("Eventname: %s\n",  name);
+			printf("Eventmask: %u\n", event->mask);
+			*/
+
+			if(event->mask == IN_IGNORED) {
+				continue;
+			}
+
+			// Optionally notify about events
+			if(verbose == 1) {
+				printf("Received event for file: %s\n", name);
+			}
+
+			(void)name;
+			if(command != NULL) {
+				
+				if(use_regex) {
+					if(regexec(&regexp, name, 0, NULL, 0) == 0) {
+						system(command);
+					}
+				} else {
+					system(command);
+				}
+			}
+
+			if(oneshot == 1) {
+				break;
 			}
 		}
-
-		if(oneshot == 1)
-			break;
 	}
 }
 
@@ -113,7 +132,7 @@ main(int argc, char **argv) {
 	int wdes;
 
 	// inotify watch mask
-	uint32_t mask = 0;
+	uint32_t mask = IN_EXCL_UNLINK;
 
 	int option_index = 0;
 	static struct option long_options[] = {
@@ -182,7 +201,7 @@ main(int argc, char **argv) {
 		}
 	}
 
-	if(mask == 0) {
+	if(mask == IN_EXCL_UNLINK) {
 		mask |= IN_MODIFY;
 	}
 
