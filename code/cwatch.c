@@ -19,20 +19,12 @@
 /* TODO
  * Use a hash to store watch descriptors, instead of an array.
 
- * In command to execute, add escape to match triggered file.
-
- * See if we by matching the watch descriptor, can get a filename out of
-   triggered files.
-
- * Full length names for passed options, they are easier to remember.
+ * When matching escape, possibly prefix folder name.
 
  * Add all inotify events to passable options.
 
- * Make monitoring a single file work better than oneshot (What did i mean?)
-
  * At some point in the future, make it possible to have a .cwatch file, that
    specifies matched patterns and actions on files.
-
  */
 
 char *usage = "Usage: cwatch [OPTIONS] files/directories [OPTIONS]\n"
@@ -56,6 +48,7 @@ void loop(int inotify_fd, W_DATA **watched_files, int watch_count, uint32_t mask
 	static struct inotify_event *event = NULL;
 	ssize_t read_size ;
 	char *name = NULL;
+	char *filled_command;
 
 	while(1) {
 		//struct inotify_event *event = in_event(inotify_fd);
@@ -103,16 +96,32 @@ void loop(int inotify_fd, W_DATA **watched_files, int watch_count, uint32_t mask
 				printf("Received event for file: %s\n", name);
 			}
 
-			(void)name;
-			if(command != NULL) {
+			char *replace_index = strstr(command, "{}");
+			if(replace_index != NULL) {
+
+				filled_command = malloc(sizeof(char) * (strlen(command) + strlen(name) - 1));
+				filled_command[0] = '\0';
+
+				strncat(filled_command, command, (int)(replace_index - command));
+				strcat(filled_command, name);
+				strcat(filled_command, replace_index + 2);
+			} else {
+				filled_command = command;
+			}
+
+			if(filled_command != NULL) {
 				
 				if(use_regex) {
 					if(regexec(&regexp, name, 0, NULL, 0) == 0) {
-						system(command);
+						system(filled_command);
 					}
 				} else {
-					system(command);
+					system(filled_command);
 				}
+			}
+
+			if(replace_index != NULL) {
+				free(filled_command);
 			}
 
 			if(oneshot == 1) {
