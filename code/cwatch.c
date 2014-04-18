@@ -260,22 +260,3 @@ main(int argc, char **argv) {
 	close(inotify_fd);
 	exit(EXIT_SUCCESS);
 }
-
-// Read inotify event from filehandle to memory allocated once. If memory leaks
-// are to be avoided, free the returned memory after the last usage.
-struct inotify_event* in_event(int fd) {
-	static struct inotify_event *event = NULL;
-
-	if(event == NULL) {
-		event = malloc(sizeof(struct inotify_event) + NAME_MAX + 1);
-	}
-
-	ssize_t read_size = read(fd, event, sizeof(struct inotify_event) + NAME_MAX + 1);
-
-	if(read_size == -1) {
-		fprintf(stderr, "Error reading inotify watch: %s\n", strerror(errno));
-		exit(EXIT_FAILURE);
-	}
-
-	return event;
-}
