@@ -209,6 +209,7 @@ main(int argc, char **argv) {
 	if(argc < optind + 1) {
 		// This is retarded. Print some usage options instead.
 		fprintf(stderr, "Not enough options.\n");
+		fprintf(stderr, "%s", usage);
 		exit(EXIT_FAILURE);
 	}
 
